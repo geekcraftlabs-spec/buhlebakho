@@ -1,0 +1,28 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+model Order {
+  id               String   @id
+  name             String
+  whatsapp         String   // Stored as +27XXXXXXXXX
+  deliveryMethod   String   // "door" | "locker"
+  address          String?  // null for locker delivery
+  items            Json     // Array of CartItem
+  subtotal         Int
+  deliveryFee      Int      // Always 100 (flat rate)
+  total            Int
+  status           String   @default("pending")
+  payshapReference String   // e.g., "Karabo492"
+  createdAt        DateTime @default(now())
+  waybill          String?
+
+  @@index([status])
+  @@index([createdAt])
+}
