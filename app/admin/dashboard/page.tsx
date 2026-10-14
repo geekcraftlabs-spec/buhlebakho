@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
@@ -80,16 +81,29 @@ export default function DashboardPage() {
   const [tab, setTab] = useState("pending");
   const [waybills, setWaybills] = useState<Record<string, string>>({});
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const res = await fetch("/api/admin/orders");
-    if (res.status === 401) {
-      router.push("/admin/login");
-      return;
+    try {
+      const res = await fetch("/api/admin/orders");
+      if (res.status === 401) {
+        router.push("/admin/login");
+        return;
+      }
+      if (!res.ok) {
+        const text = await res.text();
+        console.error("[dashboard] fetch failed:", res.status, text);
+        setLoadError(`Could not load orders (${res.status})`);
+        return;
+      }
+      const data = await res.json();
+      setOrders(Array.isArray(data.orders) ? data.orders : []);
+      setStats(data.stats ?? null);
+      setLoadError(null);
+    } catch (err) {
+      console.error("[dashboard] load error:", err);
+      setLoadError("Could not reach the server. Check your connection.");
     }
-    const data = await res.json();
-    setOrders(data.orders);
-    setStats(data.stats);
   }, [router]);
 
   useEffect(() => {
@@ -186,6 +200,12 @@ Delivery is expected within 2-3 business days. We can't wait for you to receive 
           </Button>
         </div>
       </header>
+
+      {loadError && (
+        <div className="bg-red-500/10 border border-red-500/30 rounded-2xl px-5 py-4 text-sm text-red-400">
+          ⚠ {loadError}
+        </div>
+      )}
 
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
