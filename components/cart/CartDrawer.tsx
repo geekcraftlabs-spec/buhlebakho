@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
@@ -6,11 +7,14 @@ import Link from "next/link";
 import { X, Plus, Minus, Trash2 } from "lucide-react";
 import { useCartStore, useCartSubtotal } from "@/lib/store";
 import { formatPrice, cn } from "@/lib/utils";
-import { DELIVERY_FEE } from "@/lib/data";
+import { getTextureLabel } from "@/lib/catalog";
+
+const DELIVERY_FEE = 100;
 
 export function CartDrawer() {
   const { items, isOpen, closeCart, updateQuantity, removeItem } = useCartStore();
   const subtotal = useCartSubtotal();
+  const total = subtotal + (items.length > 0 ? DELIVERY_FEE : 0);
 
   return (
     <AnimatePresence>
@@ -31,7 +35,9 @@ export function CartDrawer() {
             className="fixed top-0 right-0 h-full w-full max-w-md bg-espresso border-l border-white/10 z-[70] flex flex-col"
           >
             <header className="flex items-center justify-between p-6 border-b border-white/10">
-              <h2 className="font-display text-2xl text-sand">Your Bag</h2>
+              <h2 className="font-display text-2xl text-sand">
+                Your Bag ({items.length})
+              </h2>
               <button
                 onClick={closeCart}
                 className="text-sand/60 hover:text-sand"
@@ -49,7 +55,7 @@ export function CartDrawer() {
               )}
               {items.map((item) => (
                 <div
-                  key={item.productId + item.size + item.color}
+                  key={item.variantId}
                   className="flex gap-4 bg-white/[0.03] border border-white/10 rounded-2xl p-3"
                 >
                   <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-black/30 shrink-0">
@@ -66,18 +72,14 @@ export function CartDrawer() {
                       {item.productName}
                     </h3>
                     <p className="text-xs text-sand/50 mt-0.5">
-                      {item.color} · {item.size}&quot; · {item.rangeLabel}
+                      {item.colorName} · {item.sizeLabel}
+                      {item.laceType && ` · ${item.laceType}`}
                     </p>
                     <div className="flex items-center justify-between mt-2">
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() =>
-                            updateQuantity(
-                              item.productId,
-                              item.size,
-                              item.color,
-                              item.quantity - 1
-                            )
+                            updateQuantity(item.variantId, item.quantity - 1)
                           }
                           className="w-6 h-6 rounded-md border border-white/15 flex items-center justify-center text-sand/60 hover:border-terracotta hover:text-terracotta"
                         >
@@ -88,12 +90,7 @@ export function CartDrawer() {
                         </span>
                         <button
                           onClick={() =>
-                            updateQuantity(
-                              item.productId,
-                              item.size,
-                              item.color,
-                              item.quantity + 1
-                            )
+                            updateQuantity(item.variantId, item.quantity + 1)
                           }
                           className="w-6 h-6 rounded-md border border-white/15 flex items-center justify-center text-sand/60 hover:border-terracotta hover:text-terracotta"
                         >
@@ -106,9 +103,7 @@ export function CartDrawer() {
                     </div>
                   </div>
                   <button
-                    onClick={() =>
-                      removeItem(item.productId, item.size, item.color)
-                    }
+                    onClick={() => removeItem(item.variantId)}
                     className="text-sand/30 hover:text-red-400 self-start"
                     aria-label="Remove item"
                   >
@@ -132,7 +127,7 @@ export function CartDrawer() {
                   <div className="flex justify-between text-sand font-medium pt-2 border-t border-white/5">
                     <span>Total</span>
                     <span className="text-terracotta font-display text-xl">
-                      {formatPrice(subtotal + DELIVERY_FEE)}
+                      {formatPrice(total)}
                     </span>
                   </div>
                 </div>

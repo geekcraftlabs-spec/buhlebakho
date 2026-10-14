@@ -1,7 +1,9 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Home, ShoppingBag, Sparkles, ShoppingCart } from "lucide-react";
 import { useCartStore, useCartCount } from "@/lib/store";
@@ -16,6 +18,16 @@ export function MobileDock() {
   const pathname = usePathname();
   const openCart = useCartStore((s) => s.openCart);
   const count = useCartCount();
+  const lastAddedAt = useCartStore((s) => s.lastAddedAt);
+
+  const [pulse, setPulse] = useState(false);
+
+  useEffect(() => {
+    if (lastAddedAt === 0) return;
+    setPulse(true);
+    const t = setTimeout(() => setPulse(false), 600);
+    return () => clearTimeout(t);
+  }, [lastAddedAt]);
 
   return (
     <motion.nav
@@ -57,13 +69,25 @@ export function MobileDock() {
           aria-label="Open cart"
           className="relative flex items-center gap-1.5 px-3.5 py-2.5 rounded-full text-xs text-sand/60 hover:text-sand transition-colors"
         >
-          <ShoppingCart size={15} />
+          <motion.div
+            animate={pulse ? { scale: [1, 1.25, 1] } : { scale: 1 }}
+            transition={{ duration: 0.4 }}
+            className="relative"
+          >
+            <ShoppingCart size={15} />
+            {count > 0 && (
+              <motion.span
+                key={count}
+                initial={{ scale: 0.6, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                className="absolute -top-2 -right-2 bg-terracotta text-white text-[10px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1"
+              >
+                {count}
+              </motion.span>
+            )}
+          </motion.div>
           <span>Bag</span>
-          {count > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 bg-terracotta text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
-              {count}
-            </span>
-          )}
         </button>
       </div>
     </motion.nav>

@@ -3,18 +3,13 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { SiteNav } from "@/components/navigation/SiteNav";
 import { Button } from "@/components/ui/Button";
-import { ProductCard } from "@/components/ui/ProductCard";
 import { TikTokGallery } from "@/components/tiktok/TikTokGallery";
 import { BeadworkCorner } from "@/components/brand/BeadworkCorner";
 import { BeadworkDivider } from "@/components/brand/BeadworkDivider";
 import { Marquee } from "@/components/brand/Marquee";
-import { wigProducts } from "@/lib/data";
+import { CATEGORIES } from "@/lib/catalog";
 
 export default function Home() {
-  const featured = wigProducts
-    .filter((p) => p.hairType === "human" && p.featured)
-    .slice(0, 3);
-
   return (
     <>
       <SiteNav />
@@ -34,9 +29,8 @@ export default function Home() {
                 <span className="italic text-terracotta">Your rules.</span>
               </h1>
               <p className="text-lg text-sand/60 max-w-md leading-relaxed">
-                Premium human and synthetic wigs for the modern queen.
-                Same-day processing, 2-3 day delivery nationwide. The beauty
-                was always yours — we just reveal it.
+                Human blends, Futura fibres, and made-to-order 100% human
+                hair. Same-day processing. 2-3 day nationwide delivery.
               </p>
               <div className="flex flex-wrap gap-4 pt-2">
                 <Link href="/shop">
@@ -76,16 +70,16 @@ export default function Home() {
         {/* MARQUEE */}
         <Marquee />
 
-        {/* FEATURED */}
+        {/* FEATURED — now uses category cards */}
         <section className="px-6 py-24">
           <div className="max-w-7xl mx-auto space-y-12">
             <header className="flex items-end justify-between gap-6">
               <div>
                 <p className="text-xs uppercase tracking-[0.3em] text-terracotta">
-                  The Collection
+                  Shop by category
                 </p>
                 <h2 className="font-display text-4xl md:text-5xl text-sand mt-2">
-                  Signature pieces
+                  Three collections
                 </h2>
               </div>
               <Link
@@ -96,9 +90,43 @@ export default function Home() {
               </Link>
             </header>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {featured.map((product) => (
-                <ProductCard key={product.id} product={product} />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {CATEGORIES.map((cat) => (
+                <Link
+                  key={cat.id}
+                  href={`/shop/${cat.id}`}
+                  className="group block bg-white/[0.03] border border-white/10 rounded-3xl overflow-hidden hover:border-terracotta/40 transition"
+                >
+                  <div className="relative aspect-[4/3] overflow-hidden bg-black/20">
+                    <Image
+                      src={cat.heroImage}
+                      alt={cat.name}
+                      fill
+                      sizes="(max-width: 768px) 100vw, 33vw"
+                      className="object-cover group-hover:scale-105 transition-transform duration-700"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                    <div className="absolute bottom-0 left-0 right-0 p-6">
+                      <p
+                        className="text-[10px] uppercase tracking-[0.3em] mb-2"
+                        style={{ color: cat.accentColor }}
+                      >
+                        {cat.tagline}
+                      </p>
+                      <h3 className="font-display text-3xl text-sand">
+                        {cat.name}
+                      </h3>
+                    </div>
+                  </div>
+                  <div className="p-6">
+                    <p className="text-sm text-sand/60 leading-relaxed line-clamp-2">
+                      {cat.description}
+                    </p>
+                    <div className="flex items-center gap-2 text-terracotta text-sm uppercase tracking-widest mt-4 group-hover:gap-4 transition-all">
+                      Explore <ArrowRight size={14} />
+                    </div>
+                  </div>
+                </Link>
               ))}
             </div>
           </div>
@@ -130,11 +158,10 @@ export default function Home() {
                 It was always yours.
               </h2>
               <p className="text-sand/60 leading-relaxed max-w-lg text-lg">
-                Buhle Bakho is Kiara&apos;s love letter to every woman
-                who&apos;s ever been told her beauty needs approval. Whether
-                you want premium human hair or a stunning synthetic set, every
-                piece is hand-picked, pre-styled, and built for the woman who
-                already knows her worth.
+                Buhle Bakho started with a simple idea — that every woman
+                deserves to feel like the best version of herself. Whether you
+                want a premium human blend, a bold Futura fibre, or a custom
+                wig made just for you, we&apos;ve got you.
               </p>
               <Link
                 href="/her-story"
@@ -187,7 +214,7 @@ export default function Home() {
             {[
               { label: "Same-day", value: "Processing" },
               { label: "2-3 Days", value: "Delivery" },
-              { label: "Human + Synthetic", value: "Options" },
+              { label: "3 Types", value: "Of Hair" },
               { label: "Nationwide", value: "Shipping" },
             ].map((stat) => (
               <div key={stat.label}>
