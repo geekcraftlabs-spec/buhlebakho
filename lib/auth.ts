@@ -4,8 +4,10 @@ const SESSION_COOKIE = "admin_session";
 
 export async function isAuthenticated(): Promise<boolean> {
   const cookieStore = await cookies();
-  const session = cookieStore.get(SESSION_COOKIE);
-  return session?.value === process.env.ADMIN_SESSION_TOKEN;
+  return (
+    cookieStore.get(SESSION_COOKIE)?.value ===
+    process.env.ADMIN_SESSION_TOKEN
+  );
 }
 
 export async function login(password: string): Promise<boolean> {
@@ -13,9 +15,9 @@ export async function login(password: string): Promise<boolean> {
     const cookieStore = await cookies();
     cookieStore.set(SESSION_COOKIE, process.env.ADMIN_SESSION_TOKEN!, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: false, // allow on http:// LAN
       sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 30,
+      maxAge: 60 * 60 * 24 * 90,
       path: "/",
     });
     return true;

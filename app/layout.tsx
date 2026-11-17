@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Cormorant_Garamond } from "next/font/google";
 import "./globals.css";
 
@@ -14,7 +14,7 @@ const cormorant = Cormorant_Garamond({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://buhlebakho.vercel.app"),
+  metadataBase: new URL("https://buhlebakho.co.za"),
   title: "Buhle Bakho by Kiara Mabuza | Human & Synthetic Wigs",
   description:
     "Your beauty. Your crown. Your rules. Premium human and synthetic wigs, delivered in 2-3 days nationwide.",
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     title: "Buhle Bakho by Kiara Mabuza",
     description:
       "Your beauty. Your crown. Your rules. Human and synthetic wigs delivered in 2-3 days.",
-    url: "https://buhlebakho.vercel.app",
+    url: "https://buhlebakho.co.za",
     siteName: "Buhle Bakho",
     type: "website",
     locale: "en_ZA",
@@ -48,14 +48,22 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${cormorant.variable}`}>
-      <body className="font-sans min-h-screen flex flex-col">
-        {children}
-      </body>
+    <html
+      lang="en"
+      className={`${inter.variable} ${cormorant.variable}`}
+      suppressHydrationWarning
+    >
+      <body className="font-sans min-h-screen flex flex-col">{children}</body>
     </html>
   );
 }

@@ -1,86 +1,66 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   LogOut,
-  MessageCircle,
-  Send,
   Truck,
   Flower2,
-  Clock,
-  CheckCircle2,
   Package,
   TrendingUp,
+  Copy,
+  Check,
+  ChevronDown,
+  Bell,
+  DollarSign,
+  MessageCircle,
+  MapPin,
+  Phone,
+  ExternalLink,
+  Calendar,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 import { formatPrice, cn } from "@/lib/utils";
-import { CartItem } from "@/types";
-
-interface Order {
-  id: string;
-  name: string;
-  whatsapp: string;
-  deliveryMethod: string;
-  address: string | null;
-  items: CartItem[];
-  subtotal: number;
-  deliveryFee: number;
-  total: number;
-  status: string;
-  payshapReference: string;
-  createdAt: string;
-  waybill: string | null;
-}
+import { copyToClipboard } from "@/lib/clipboard";
+import { Order } from "@/types";
+import {
+  groupOrdersByDay,
+  getDayLabel,
+  buildSupplierOrderText,
+} from "@/lib/admin";
+import { SendMessagesModal } from "@/components/admin/SendMessagesModal";
 
 interface Stats {
-  pending: number;
-  paymentSent: number;
-  paid: number;
+  toShip: number;
+  awaitingShipment: number;
+  shipped: number;
+  delivered: number;
   thisMonthRevenue: number;
+  allTimeRevenue: number;
+  allTimeOrderCount: number;
 }
 
 const TABS = [
-  { id: "pending", label: "Pending" },
-  { id: "payment_sent", label: "Awaiting Proof" },
-  { id: "paid", label: "Paid" },
+  { id: "paid", label: "Orders to Ship" },
+  { id: "awaiting_shipment", label: "Awaiting Shipment" },
   { id: "shipped", label: "Shipped" },
-  { id: "delivered", label: "Delivered" },
-  { id: "cancelled", label: "Cancelled" },
   { id: "all", label: "All" },
 ];
-
-const BUSINESS_NAME = "Buhle Bakho";
-
-const STATUS_STYLES: Record<string, string> = {
-  pending: "bg-sand/10 text-sand/70 border-sand/20",
-  payment_sent: "bg-amber-500/10 text-amber-400 border-amber-500/30",
-  paid: "bg-terracotta/15 text-terracotta border-terracotta/40",
-  shipped: "bg-blue-500/10 text-blue-400 border-blue-500/30",
-  delivered: "bg-green-500/10 text-green-400 border-green-500/30",
-  cancelled: "bg-red-500/10 text-red-400 border-red-500/30",
-};
-
-function formatDate(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleDateString("en-ZA", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 export default function DashboardPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
-  const [tab, setTab] = useState("pending");
-  const [waybills, setWaybills] = useState<Record<string, string>>({});
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [tab, setTab] = useState("paid");
+  const [expandedDay, setExpandedDay] = useState<string | null>(null);
+  const [collectedDays, setCollectedDays] = useState<Set<string>>(new Set());
+  const [copiedSupplier, setCopiedSupplier] = useState<string | null>(null);
+  const [copiedIds, setCopiedIds] = useState<Set<string>>(new Set());
+  const [broadcastDay, setBroadcastDay] = useState<string | null>(null);
+  const [broadcastOrders, setBroadcastOrders] = useState<Order[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -91,8 +71,6 @@ export default function DashboardPage() {
         return;
       }
       if (!res.ok) {
-        const text = await res.text();
-        console.error("[dashboard] fetch failed:", res.status, text);
         setLoadError(`Could not load orders (${res.status})`);
         return;
       }
@@ -102,7 +80,7 @@ export default function DashboardPage() {
       setLoadError(null);
     } catch (err) {
       console.error("[dashboard] load error:", err);
-      setLoadError("Could not reach the server. Check your connection.");
+      setLoadError("Could not reach the server.");
     }
   }, [router]);
 
@@ -112,59 +90,81 @@ export default function DashboardPage() {
     return () => clearInterval(id);
   }, [load]);
 
-  const updateStatus = async (id: string, status: string, waybill?: string) => {
-    await fetch(`/api/admin/orders/${id}`, {
+  const tabOrders = useMemo(() => {
+    if (tab === "all") return orders;
+    return orders.filter((o) => o.status === tab);
+  }, [orders, tab]);
+
+  const groupedByDay = useMemo(
+    () => groupOrdersByDay(tabOrders),
+    [tabOrders]
+  );
+
+  useEffect(() => {
+    if (!expandedDay && groupedByDay.size > 0) {
+      setExpandedDay(Array.from(groupedByDay.keys())[0]);
+    }
+  }, [groupedByDay, expandedDay]);
+
+  const copy = async (text: string, id: string) => {
+    const ok = await copyToClipboard(text);
+    if (ok) {
+      setCopiedIds((prev) => new Set(prev).add(id));
+    }
+  };
+
+  const copySupplierText = async (dayKey: string, dayOrders: Order[]) => {
+    const text = buildSupplierOrderText(dayOrders);
+    const ok = await copyToClipboard(text);
+    if (ok) {
+      setCopiedSupplier(dayKey);
+      setTimeout(() => setCopiedSupplier(null), 2500);
+    }
+  };
+
+  const markDayCollected = (dayKey: string) => {
+    setCollectedDays((prev) => new Set(prev).add(dayKey));
+    setExpandedDay(null);
+  };
+
+  const moveDayToAwaitingShipment = async (
+    dayKey: string,
+    dayOrders: Order[]
+  ) => {
+    const ids = dayOrders.map((o) => o.id);
+    await fetch("/api/admin/orders/bulk", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status, waybill }),
+      body: JSON.stringify({ orderIds: ids, status: "awaiting_shipment" }),
+    });
+    setCollectedDays((prev) => {
+      const next = new Set(prev);
+      next.delete(dayKey);
+      return next;
     });
     load();
   };
 
-  const openWhatsApp = (phone: string, text: string) => {
-    const clean = phone.replace(/\D/g, "");
-    window.open(
-      `https://wa.me/${clean}?text=${encodeURIComponent(text)}`,
-      "_blank"
-    );
+  const openBroadcast = (dayKey: string, dayOrders: Order[]) => {
+    setBroadcastDay(dayKey);
+    setBroadcastOrders(dayOrders);
   };
 
-  const sendPaymentDetails = (order: Order) => {
-    const origin = "https://buhlebakho.co.za";
-    const msg = `Hi ${order.name.split(" ")[0]}! Thank you for shopping with ${BUSINESS_NAME} 🖤
-
-Your order *${order.id}* total is *${formatPrice(order.total)}*.
-
-To complete your payment, please click this link to easily copy your Payshap details:
-${origin}/pay/${order.id}
-
-Once paid, kindly send us a screenshot of your proof of payment here on WhatsApp.
-
-Order processing: same-day · Delivery: 2-3 business days nationwide.`;
-    openWhatsApp(order.whatsapp, msg);
-    updateStatus(order.id, "payment_sent");
+  const finalizeBroadcast = async () => {
+    if (!broadcastDay || broadcastOrders.length === 0) return;
+    const ids = broadcastOrders.map((o) => o.id);
+    await fetch("/api/admin/orders/bulk", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderIds: ids, status: "shipped" }),
+    });
+    setBroadcastDay(null);
+    setBroadcastOrders([]);
+    load();
   };
-
-  const sendTracking = (order: Order) => {
-    const waybill = waybills[order.id] || "";
-    if (!waybill.trim()) return;
-    const msg = `Hi ${order.name.split(" ")[0]}! Great news 🎉
-
-Your order *${order.id}* has been shipped!
-
-Track your parcel here:
-${waybill}
-
-Delivery is expected within 2-3 business days. We can't wait for you to receive your crown! 👑`;
-    openWhatsApp(order.whatsapp, msg);
-    updateStatus(order.id, "shipped", waybill);
-  };
-
-  const filtered =
-    tab === "all" ? orders : orders.filter((o) => o.status === tab);
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-10 space-y-10">
+    <div className="max-w-7xl mx-auto px-6 py-10 space-y-8">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-terracotta/20 border border-terracotta/40 flex items-center justify-center">
@@ -179,13 +179,23 @@ Delivery is expected within 2-3 business days. We can't wait for you to receive 
             </h1>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={load}
-            className="text-sand/60 hover:text-sand"
-          >
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href="/admin/inventory">
+            <Button variant="secondary" size="sm">
+              <Package size={14} /> Inventory
+            </Button>
+          </Link>
+          <Link href="/admin/waitlist">
+            <Button variant="secondary" size="sm">
+              <Bell size={14} /> Waitlist
+            </Button>
+          </Link>
+          <Link href="/admin/tools">
+            <Button variant="ghost" size="sm">
+              <Calendar size={14} /> Tools
+            </Button>
+          </Link>
+          <Button variant="ghost" size="sm" onClick={load}>
             Refresh
           </Button>
           <Button
@@ -210,28 +220,36 @@ Delivery is expected within 2-3 business days. We can't wait for you to receive 
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: "Pending", value: stats.pending, icon: Clock },
-            { label: "Awaiting Proof", value: stats.paymentSent, icon: Send },
-            { label: "Paid", value: stats.paid, icon: CheckCircle2 },
+            { label: "Orders to Ship", value: stats.toShip, icon: Package },
+            {
+              label: "Awaiting Shipment",
+              value: stats.awaitingShipment,
+              icon: Truck,
+            },
             {
               label: "This Month",
               value: formatPrice(stats.thisMonthRevenue),
               icon: TrendingUp,
+            },
+            {
+              label: "All-Time",
+              value: formatPrice(stats.allTimeRevenue),
+              icon: DollarSign,
             },
           ].map((s) => {
             const Icon = s.icon;
             return (
               <div
                 key={s.label}
-                className="bg-white/[0.03] border border-white/10 rounded-2xl p-5 space-y-3"
+                className="bg-white/[0.03] border border-white/10 rounded-2xl p-4 space-y-2"
               >
                 <div className="flex items-center justify-between">
-                  <p className="text-xs uppercase tracking-widest text-sand/40">
+                  <p className="text-[10px] uppercase tracking-widest text-sand/40">
                     {s.label}
                   </p>
-                  <Icon size={16} className="text-terracotta/60" />
+                  <Icon size={14} className="text-terracotta/60" />
                 </div>
-                <p className="font-display text-3xl text-terracotta leading-none">
+                <p className="font-display text-2xl text-terracotta leading-none">
                   {s.value}
                 </p>
               </div>
@@ -272,239 +290,308 @@ Delivery is expected within 2-3 business days. We can't wait for you to receive 
       </div>
 
       <div className="space-y-4">
-        {filtered.length === 0 && (
+        {groupedByDay.size === 0 && (
           <div className="text-center py-20 border border-dashed border-white/10 rounded-3xl">
             <Package size={28} className="mx-auto text-sand/30 mb-3" />
-            <p className="text-sand/50">No orders here yet.</p>
+            <p className="text-sand/50">No orders in this tab.</p>
           </div>
         )}
 
-        {filtered.map((order) => {
-          const isOpen = expanded === order.id;
+        {Array.from(groupedByDay.entries()).map(([dayKey, dayOrders]) => {
+          const isOpen = expandedDay === dayKey;
+          const isCollected = collectedDays.has(dayKey);
+          const isCopied = copiedSupplier === dayKey;
+          const dayRevenue = dayOrders
+            .filter((o) =>
+              ["paid", "awaiting_shipment", "shipped", "delivered"].includes(
+                o.status
+              )
+            )
+            .reduce((s, o) => s + o.total, 0);
+
+          const isToShipTab = tab === "paid";
+          const isAwaitingTab = tab === "awaiting_shipment";
+
           return (
-            <motion.div
-              key={order.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-white/[0.03] border border-white/10 rounded-3xl overflow-hidden"
+            <div
+              key={dayKey}
+              className={cn(
+                "bg-white/[0.03] border border-white/10 rounded-3xl overflow-hidden transition",
+                isCollected && "opacity-50"
+              )}
             >
-              <button
-                onClick={() => setExpanded(isOpen ? null : order.id)}
-                className="w-full flex flex-wrap items-center justify-between gap-4 p-5 text-left hover:bg-white/[0.02] transition"
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() =>
+                  !isCollected && setExpandedDay(isOpen ? null : dayKey)
+                }
+                onKeyDown={(e) => {
+                  if ((e.key === "Enter" || e.key === " ") && !isCollected) {
+                    e.preventDefault();
+                    setExpandedDay(isOpen ? null : dayKey);
+                  }
+                }}
+                className={cn(
+                  "w-full flex flex-wrap items-center justify-between gap-4 p-5 transition text-left",
+                  !isCollected && "hover:bg-white/[0.02] cursor-pointer",
+                  isCollected && "cursor-not-allowed"
+                )}
               >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <p className="text-sand font-medium">{order.name}</p>
-                    <span
+                <div className="flex items-center gap-4 flex-1 min-w-0">
+                  {!isCollected && (
+                    <ChevronDown
+                      size={18}
                       className={cn(
-                        "text-[10px] uppercase tracking-widest px-2.5 py-1 rounded-full border",
-                        STATUS_STYLES[order.status] || STATUS_STYLES.pending
+                        "text-sand/40 transition-transform",
+                        isOpen && "rotate-180"
                       )}
-                    >
-                      {order.status.replace("_", " ")}
-                    </span>
-                  </div>
-                  <p className="text-xs text-sand/50 mt-1">
-                    {order.whatsapp} · {order.deliveryMethod} ·{" "}
-                    {formatDate(order.createdAt)}
-                  </p>
-                  <p className="text-[10px] font-mono text-sand/30 mt-1">
-                    {order.id}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="font-display text-2xl text-terracotta leading-none">
-                    {formatPrice(order.total)}
-                  </p>
-                  <p className="text-[10px] text-sand/40 mt-1">
-                    {order.items.reduce((s, i) => s + i.quantity, 0)} items
-                  </p>
-                </div>
-              </button>
-
-              {isOpen && (
-                <div className="border-t border-white/5 p-5 space-y-5">
-                  <div>
-                    <p className="text-xs uppercase tracking-widest text-sand/40 mb-3">
-                      Items
-                    </p>
-                    <div className="space-y-2">
-                      {order.items.map((it, i) => (
-                        <div
-                          key={i}
-                          className="flex items-center justify-between bg-white/[0.02] rounded-xl px-4 py-2.5 text-sm"
-                        >
-                          <div>
-                            <span className="text-sand">{it.productName}</span>
-                            <span className="text-sand/40 ml-2 text-xs">
-                              {it.color} · {it.size}&quot; · {it.rangeLabel}
-                            </span>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sand">
-                              ×{it.quantity} ·{" "}
-                              <span className="text-terracotta">
-                                {formatPrice(it.price * it.quantity)}
-                              </span>
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {order.address && (
-                    <div>
-                      <p className="text-xs uppercase tracking-widest text-sand/40 mb-2">
-                        Delivery address
-                      </p>
-                      <p className="text-sm text-sand/80 bg-white/[0.02] rounded-xl px-4 py-3">
-                        {order.address}
-                      </p>
+                    />
+                  )}
+                  {isCollected && (
+                    <div className="w-[18px] h-[18px] flex items-center justify-center">
+                      <Check size={16} className="text-green-400" />
                     </div>
                   )}
-
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
-                    <div className="bg-white/[0.02] rounded-xl px-4 py-3">
-                      <p className="text-sand/40 uppercase tracking-widest text-[10px] mb-1">
-                        Payshap Ref
-                      </p>
-                      <p className="text-sand font-mono">
-                        {order.payshapReference}
-                      </p>
-                    </div>
-                    <div className="bg-white/[0.02] rounded-xl px-4 py-3">
-                      <p className="text-sand/40 uppercase tracking-widest text-[10px] mb-1">
-                        Subtotal
-                      </p>
-                      <p className="text-sand">{formatPrice(order.subtotal)}</p>
-                    </div>
-                    <div className="bg-white/[0.02] rounded-xl px-4 py-3">
-                      <p className="text-sand/40 uppercase tracking-widest text-[10px] mb-1">
-                        Delivery
-                      </p>
-                      <p className="text-sand">
-                        {formatPrice(order.deliveryFee)}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2 pt-3 border-t border-white/5">
-                    {order.status === "pending" && (
-                      <>
-                        <Button
-                          size="sm"
-                          onClick={() => sendPaymentDetails(order)}
-                        >
-                          <Send size={14} /> Send Payment Details
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => updateStatus(order.id, "cancelled")}
-                        >
-                          Cancel Order
-                        </Button>
-                      </>
-                    )}
-
-                    {order.status === "payment_sent" && (
-                      <>
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() =>
-                            openWhatsApp(
-                              order.whatsapp,
-                              `Hi ${order.name.split(" ")[0]}, just checking in on your order ${order.id}!`
-                            )
-                          }
-                        >
-                          <MessageCircle size={14} /> Open WhatsApp
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={() => updateStatus(order.id, "paid")}
-                        >
-                          Mark as Paid
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => updateStatus(order.id, "cancelled")}
-                        >
-                          Cancel
-                        </Button>
-                      </>
-                    )}
-
-                    {order.status === "paid" && (
-                      <>
-                        <Input
-                          placeholder="Waybill / tracking number"
-                          value={waybills[order.id] ?? ""}
-                          onChange={(e) =>
-                            setWaybills((w) => ({
-                              ...w,
-                              [order.id]: e.target.value,
-                            }))
-                          }
-                          className="max-w-xs"
-                        />
-                        <Button size="sm" onClick={() => sendTracking(order)}>
-                          <Truck size={14} /> Send Tracking
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => updateStatus(order.id, "cancelled")}
-                        >
-                          Cancel
-                        </Button>
-                      </>
-                    )}
-
-                    {order.status === "shipped" && (
-                      <>
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() =>
-                            openWhatsApp(
-                              order.whatsapp,
-                              `Hi ${order.name.split(" ")[0]}, checking in on your delivery for ${order.id}!`
-                            )
-                          }
-                        >
-                          <MessageCircle size={14} /> WhatsApp
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={() => updateStatus(order.id, "delivered")}
-                        >
-                          Mark Delivered
-                        </Button>
-                      </>
-                    )}
-
-                    {order.status === "delivered" && (
-                      <p className="text-xs text-green-400/70 uppercase tracking-widest">
-                        ✓ Order complete
-                      </p>
-                    )}
-
-                    {order.status === "cancelled" && (
-                      <p className="text-xs text-red-400/70 uppercase tracking-widest">
-                        ✕ Order cancelled
-                      </p>
-                    )}
+                  <div>
+                    <p className="text-sand font-medium">
+                      {getDayLabel(dayKey)}
+                    </p>
+                    <p className="text-xs text-sand/50">
+                      {dayOrders.length}{" "}
+                      {dayOrders.length === 1 ? "order" : "orders"}
+                      {dayRevenue > 0 && (
+                        <>
+                          {" · "}
+                          <span className="text-terracotta">
+                            {formatPrice(dayRevenue)}
+                          </span>
+                        </>
+                      )}
+                      {isCollected && (
+                        <span className="text-green-400 ml-2">
+                          · Stock collected
+                        </span>
+                      )}
+                    </p>
                   </div>
                 </div>
-              )}
-            </motion.div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {isToShipTab && !isCollected && (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          copySupplierText(dayKey, dayOrders);
+                        }}
+                      >
+                        {isCopied ? (
+                          <>
+                            <Check size={14} /> Copied
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={14} /> Copy for Supplier
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          markDayCollected(dayKey);
+                        }}
+                      >
+                        <Check size={14} /> Stock Collected
+                      </Button>
+                    </>
+                  )}
+
+                  {isToShipTab && isCollected && (
+                    <Button
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        moveDayToAwaitingShipment(dayKey, dayOrders);
+                      }}
+                    >
+                      <Truck size={14} /> Move to Awaiting Shipment
+                    </Button>
+                  )}
+
+                  {isAwaitingTab && (
+                    <Button
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openBroadcast(dayKey, dayOrders);
+                      }}
+                    >
+                      <MessageCircle size={14} /> Send Messages & Ship
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              <AnimatePresence>
+                {isOpen && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="border-t border-white/5 overflow-hidden"
+                  >
+                    <div className="p-5 space-y-3">
+                      {dayOrders.map((order) =>
+                        isToShipTab ? (
+                          <SimpleOrderRow key={order.id} order={order} />
+                        ) : (
+                          <ShippingOrderRow
+                            key={order.id}
+                            order={order}
+                            copy={copy}
+                            copiedIds={copiedIds}
+                          />
+                        )
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           );
         })}
       </div>
+
+      <SendMessagesModal
+        open={broadcastDay !== null}
+        orders={broadcastOrders}
+        onClose={() => {
+          setBroadcastDay(null);
+          setBroadcastOrders([]);
+        }}
+        onAllSent={finalizeBroadcast}
+      />
+    </div>
+  );
+}
+
+function SimpleOrderRow({ order }: { order: Order }) {
+  const itemCount = order.items.reduce((s, i) => s + i.quantity, 0);
+  return (
+    <div className="bg-white/[0.02] border border-white/5 rounded-xl px-4 py-3 flex items-center justify-between gap-4">
+      <div className="min-w-0 flex-1">
+        <p className="text-sand text-sm">{order.name}</p>
+        <p className="text-xs text-sand/40 font-mono mt-0.5">{order.id}</p>
+      </div>
+      <div className="text-right shrink-0">
+        <p className="text-terracotta font-display text-lg">
+          {formatPrice(order.total)}
+        </p>
+        <p className="text-xs text-sand/40">
+          {itemCount} {itemCount === 1 ? "item" : "items"}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ShippingOrderRow({
+  order,
+  copy,
+  copiedIds,
+}: {
+  order: Order;
+  copy: (text: string, id: string) => Promise<void>;
+  copiedIds: Set<string>;
+}) {
+  const smsCopied = copiedIds.has(`sms-${order.id}`);
+  const addrCopied = copiedIds.has(`addr-${order.id}`);
+  const bothCopied = smsCopied && addrCopied;
+
+  if (bothCopied) {
+    return (
+      <motion.div
+        initial={{ opacity: 1, height: "auto" }}
+        animate={{ opacity: 0.3, height: "auto" }}
+        className="bg-green-500/5 border border-green-500/20 rounded-xl px-4 py-3 flex items-center justify-between gap-4"
+      >
+        <div className="flex items-center gap-2 text-sm text-green-400">
+          <Check size={14} /> {order.name} — ready for courier
+        </div>
+      </motion.div>
+    );
+  }
+
+  return (
+    <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4 space-y-3">
+      <div className="flex items-center justify-between gap-4">
+        <p className="text-sand font-medium">{order.name}</p>
+        <p className="text-xs text-sand/40 font-mono">{order.id}</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+        {order.smsNumber && (
+          <div className="bg-white/[0.02] rounded-lg px-3 py-2 flex items-center justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] uppercase tracking-widest text-sand/40 flex items-center gap-1">
+                <Phone size={9} /> SMS (for courier)
+              </p>
+              <p className="text-sand text-sm truncate">{order.smsNumber}</p>
+            </div>
+            <button
+              onClick={() => copy(order.smsNumber!, `sms-${order.id}`)}
+              disabled={smsCopied}
+              className={cn(
+                "shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition",
+                smsCopied
+                  ? "bg-green-500/10 text-green-400 cursor-not-allowed"
+                  : "border border-white/10 text-sand/60 hover:border-terracotta hover:text-terracotta active:border-terracotta active:text-terracotta"
+              )}
+            >
+              {smsCopied ? <Check size={14} /> : <Copy size={14} />}
+            </button>
+          </div>
+        )}
+
+        {order.address && (
+          <div className="bg-white/[0.02] rounded-lg px-3 py-2 flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] uppercase tracking-widest text-sand/40 flex items-center gap-1">
+                <MapPin size={9} /> Address
+              </p>
+              <p className="text-sand text-xs whitespace-pre-wrap line-clamp-3">
+                {order.address}
+              </p>
+            </div>
+            <button
+              onClick={() => copy(order.address!, `addr-${order.id}`)}
+              disabled={addrCopied}
+              className={cn(
+                "shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition mt-0.5",
+                addrCopied
+                  ? "bg-green-500/10 text-green-400 cursor-not-allowed"
+                  : "border border-white/10 text-sand/60 hover:border-terracotta hover:text-terracotta active:border-terracotta active:text-terracotta"
+              )}
+            >
+              {addrCopied ? <Check size={14} /> : <Copy size={14} />}
+            </button>
+          </div>
+        )}
+      </div>
+
+      <a
+        href={`https://wa.me/${order.whatsapp.replace(/\D/g, "")}`}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-center gap-1.5 text-xs text-sand/40 hover:text-terracotta transition"
+      >
+        <ExternalLink size={11} /> Open WhatsApp chat
+      </a>
     </div>
   );
 }

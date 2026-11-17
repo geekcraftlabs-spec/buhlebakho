@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
 import { use, useMemo, useState, useEffect } from "react";
@@ -8,10 +7,11 @@ import Image from "next/image";
 import { ChevronLeft, Home } from "lucide-react";
 import { SiteNav } from "@/components/navigation/SiteNav";
 import { ProductCard } from "@/components/shop/ProductCard";
+import { NotifyForm } from "@/components/shop/NotifyForm";
 import { CategoryFilter, ShopFilterState } from "@/components/shop/CategoryFilter";
 import { SortDropdown, SortOption } from "@/components/shop/SortDropdown";
-import { getVariantsByHairType } from "@/lib/inventory";
-import { getCategoryMeta, PLACEHOLDER_IMAGE, getSizeGroup } from "@/lib/catalog";
+import { DeliveryButton } from "@/components/shop/DeliveryButton";
+import { getCategoryMeta, PLACEHOLDER_IMAGE } from "@/lib/catalog";
 import { HairType, ProductVariant } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -21,7 +21,6 @@ const CATEGORY_IDS: HairType[] = [
   "custom-human-hair",
 ];
 
-// Sort helper — sorts by size in inches when possible
 function sortVariants(
   variants: ProductVariant[],
   sort: SortOption
@@ -33,17 +32,13 @@ function sortVariants(
     case "price-desc":
       return arr.sort((a, b) => b.price - a.price);
     case "size-asc":
-      return arr.sort((a, b) => {
-        const sa = parseInt(a.sizeLabel) || 0;
-        const sb = parseInt(b.sizeLabel) || 0;
-        return sa - sb;
-      });
+      return arr.sort(
+        (a, b) => (parseInt(a.sizeLabel) || 0) - (parseInt(b.sizeLabel) || 0)
+      );
     case "size-desc":
-      return arr.sort((a, b) => {
-        const sa = parseInt(a.sizeLabel) || 0;
-        const sb = parseInt(b.sizeLabel) || 0;
-        return sb - sa;
-      });
+      return arr.sort(
+        (a, b) => (parseInt(b.sizeLabel) || 0) - (parseInt(a.sizeLabel) || 0)
+      );
     case "featured":
     default:
       return arr;
@@ -65,17 +60,42 @@ export default function CategoryPage({
   });
   const [sort, setSort] = useState<SortOption>("featured");
   const [variants, setVariants] = useState<ProductVariant[]>([]);
+  const [loading, setLoading] = useState(true);
 
+  // Fetch all variants from DB on mount, filter to this category
   useEffect(() => {
     if (!CATEGORY_IDS.includes(hairType)) return;
-    setVariants(getVariantsByHairType(hairType));
+
+    const load = async () => {
+      try {
+        const res = await fetch("/api/variants", { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          const all: ProductVariant[] = data.variants ?? [];
+          setVariants(all.filter((v) => v.hairType === hairType));
+        }
+      } catch (err) {
+        console.error("[category] load error:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
+    const onFocus = () => load();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
   }, [hairType]);
 
   const filtered = useMemo(() => {
     const base = variants
       .filter((v) => !v.isHidden)
-      .filter((v) => filters.laceType === "all" || v.laceType === filters.laceType)
-      .filter((v) => filters.texture === "all" || v.texture === filters.texture);
+      .filter(
+        (v) => filters.laceType === "all" || v.laceType === filters.laceType
+      )
+      .filter(
+        (v) => filters.texture === "all" || v.texture === filters.texture
+      );
     return sortVariants(base, sort);
   }, [variants, filters, sort]);
 
@@ -104,8 +124,7 @@ export default function CategoryPage({
       <SiteNav />
       <main className="min-h-screen px-6 pt-32 pb-28 lg:pt-40">
         <div className="max-w-7xl mx-auto space-y-12">
-          {/* Top nav pills */}
-          <div className="flex flex-wrap gap-2">
+          <div className="hidden lg:flex flex-wrap gap-2">
             <Link
               href="/"
               className="inline-flex items-center gap-2 text-xs uppercase tracking-widest px-4 py-2 rounded-full border border-sand/20 text-sand/70 hover:border-sand/40 transition"
@@ -120,7 +139,6 @@ export default function CategoryPage({
             </Link>
           </div>
 
-          {/* Category hero */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
             <div className="space-y-5">
               <p
@@ -151,25 +169,31 @@ export default function CategoryPage({
             </div>
           </div>
 
-          {/* Filters + Sort row */}
           <div className="space-y-4">
             <CategoryFilter
               filters={filters}
               onChange={setFilters}
               showLace={hairType !== "custom-human-hair"}
             />
-
-            {/* Sort — visually separated */}
             <div className="flex items-center justify-between pt-4 border-t border-white/5">
               <p className="text-xs uppercase tracking-widest text-sand/40">
-                {inStock.length} {inStock.length === 1 ? "item" : "items"} available
+                {inStock.length} {inStock.length === 1 ? "item" : "items"}{" "}
+                available
               </p>
               <SortDropdown value={sort} onChange={setSort} />
             </div>
           </div>
 
-          {/* In-stock products */}
-          {inStock.length > 0 ? (
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[0, 1, 2, 3, 4, 5].map((i) => (
+                <div
+                  key={i}
+                  className="aspect-square rounded-3xl bg-white/[0.03] border border-white/10 animate-pulse"
+                />
+              ))}
+            </div>
+          ) : inStock.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {inStock.map((v) => (
                 <ProductCard key={v.id} variant={v} />
@@ -183,7 +207,6 @@ export default function CategoryPage({
             </div>
           )}
 
-          {/* Sold out / notify section */}
           {soldOut.length > 0 && (
             <section className="pt-12 border-t border-white/10 space-y-6">
               <div className="space-y-2">
@@ -201,27 +224,7 @@ export default function CategoryPage({
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {soldOut.map((v) => (
-                  <div
-                    key={v.id}
-                    className={cn(
-                      "flex items-center gap-4 bg-white/[0.02] border border-white/5 rounded-2xl p-4",
-                      "opacity-70"
-                    )}
-                  >
-                    <div className="w-14 h-14 rounded-xl bg-white/5 flex items-center justify-center shrink-0">
-                      <span className="text-[10px] uppercase tracking-widest text-sand/40 text-center leading-tight px-1">
-                        {v.laceType}
-                      </span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sand text-sm">
-                        {v.colorName} · {v.sizeLabel}
-                      </p>
-                      <p className="text-xs text-sand/40">
-                        Notify form coming soon
-                      </p>
-                    </div>
-                  </div>
+                  <NotifyForm key={v.id} variant={v} />
                 ))}
               </div>
             </section>

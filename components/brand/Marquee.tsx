@@ -6,14 +6,20 @@ const ITEMS = [
   "Your crown",
   "Your rules",
   "Premium human hair",
-  "Same-day processing",
+  "Next-day processing",
   "2-3 day delivery",
 ];
 
 export function Marquee() {
   return (
     <div className="relative overflow-hidden border-y border-sand/10 py-8">
-      <div className="flex animate-marquee whitespace-nowrap">
+      <div
+        className="flex whitespace-nowrap"
+        style={{
+          animation: "bb-marquee 24s linear infinite",
+          width: "max-content",
+        }}
+      >
         {[0, 1].map((dup) => (
           <div key={dup} className="flex shrink-0 items-center gap-10 px-5">
             {ITEMS.map((item, i) => (

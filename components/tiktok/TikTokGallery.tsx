@@ -6,10 +6,12 @@ export async function TikTokGallery({
   urls = TIKTOK_URLS,
   eyebrow = "On TikTok",
   heading = "See her in motion",
+  tiktokHandle = "kiaramabuza",
 }: {
   urls?: string[];
   eyebrow?: string;
   heading?: string;
+  tiktokHandle?: string;
 }) {
   const videos = await fetchTikTokVideos(urls);
 
@@ -27,12 +29,12 @@ export async function TikTokGallery({
           </h2>
         </div>
         <a
-          href="https://www.tiktok.com/@kiaramabuza"
+          href={`https://www.tiktok.com/@${tiktokHandle}`}
           target="_blank"
           rel="noreferrer"
           className="hidden md:inline text-sm text-sand/60 hover:text-terracotta transition"
         >
-          @kiaramabuza →
+          @{tiktokHandle} →
         </a>
       </div>
 

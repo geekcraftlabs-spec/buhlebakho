@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
@@ -7,12 +6,12 @@ import Link from "next/link";
 import { X, Plus, Minus, Trash2 } from "lucide-react";
 import { useCartStore, useCartSubtotal } from "@/lib/store";
 import { formatPrice, cn } from "@/lib/utils";
-import { getTextureLabel } from "@/lib/catalog";
 
 const DELIVERY_FEE = 100;
 
 export function CartDrawer() {
-  const { items, isOpen, closeCart, updateQuantity, removeItem } = useCartStore();
+  const { items, isOpen, closeCart, updateQuantity, removeItem } =
+    useCartStore();
   const subtotal = useCartSubtotal();
   const total = subtotal + (items.length > 0 ? DELIVERY_FEE : 0);
 
@@ -53,6 +52,7 @@ export function CartDrawer() {
                   Your bag is empty.
                 </p>
               )}
+
               {items.map((item) => (
                 <div
                   key={item.variantId}
@@ -67,14 +67,16 @@ export function CartDrawer() {
                       sizes="80px"
                     />
                   </div>
+
                   <div className="flex-1 min-w-0">
                     <h3 className="text-sand text-sm font-medium truncate">
                       {item.productName}
                     </h3>
                     <p className="text-xs text-sand/50 mt-0.5">
                       {item.colorName} · {item.sizeLabel}
-                      {item.laceType && ` · ${item.laceType}`}
+                      {item.laceType ? ` · ${item.laceType}` : ""}
                     </p>
+
                     <div className="flex items-center justify-between mt-2">
                       <div className="flex items-center gap-2">
                         <button
@@ -82,6 +84,7 @@ export function CartDrawer() {
                             updateQuantity(item.variantId, item.quantity - 1)
                           }
                           className="w-6 h-6 rounded-md border border-white/15 flex items-center justify-center text-sand/60 hover:border-terracotta hover:text-terracotta"
+                          aria-label="Decrease quantity"
                         >
                           <Minus size={12} />
                         </button>
@@ -93,6 +96,7 @@ export function CartDrawer() {
                             updateQuantity(item.variantId, item.quantity + 1)
                           }
                           className="w-6 h-6 rounded-md border border-white/15 flex items-center justify-center text-sand/60 hover:border-terracotta hover:text-terracotta"
+                          aria-label="Increase quantity"
                         >
                           <Plus size={12} />
                         </button>
@@ -102,6 +106,7 @@ export function CartDrawer() {
                       </span>
                     </div>
                   </div>
+
                   <button
                     onClick={() => removeItem(item.variantId)}
                     className="text-sand/30 hover:text-red-400 self-start"
@@ -131,6 +136,7 @@ export function CartDrawer() {
                     </span>
                   </div>
                 </div>
+
                 <Link
                   href="/checkout"
                   onClick={closeCart}

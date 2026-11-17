@@ -9,13 +9,14 @@ export async function GET(
     const { id } = await params;
     const order = await prisma.order.findUnique({ where: { id } });
     if (!order) {
+      console.error(`[public order] not found: ${id}`);
       return NextResponse.json({ error: "Not found." }, { status: 404 });
     }
     return NextResponse.json({
       id: order.id,
       name: order.name,
+      whatsapp: order.whatsapp,
       total: order.total,
-      payshapReference: order.payshapReference,
       status: order.status,
       deliveryMethod: order.deliveryMethod,
     });

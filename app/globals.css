@@ -12,6 +12,7 @@
 @layer base {
   body {
     @apply bg-espresso text-sand antialiased selection:bg-terracotta selection:text-white;
+    overscroll-behavior-x: none;
   }
 }
 
@@ -20,13 +21,10 @@
 .absolute { position: absolute; }
 .fixed { position: fixed; }
 
-/* ---------- Marquee ---------- */
-@keyframes marquee {
+/* ---------- Marquee keyframe ---------- */
+@keyframes bb-marquee {
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }
-}
-.animate-marquee {
-  animation: marquee 45s linear infinite;
 }
 
 /* ---------- Liquid Glass ---------- */

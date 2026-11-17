@@ -1,40 +1,60 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import { Loader2, Lock } from "lucide-react";
 import { useCartStore, useCartSubtotal } from "@/lib/store";
-import { formatPrice, cn } from "@/lib/utils";
+import { formatPrice } from "@/lib/utils";
 import { DELIVERY_FEE } from "@/lib/data";
 import { Button } from "@/components/ui/Button";
-import { Input, Textarea } from "@/components/ui/Input";
+import { Input } from "@/components/ui/Input";
+import { AddressInput } from "./AddressInput";
+
+interface AddressDetails {
+  formatted: string;
+  street: string;
+  suburb: string;
+  town: string;
+  province: string;
+  postalCode: string;
+}
 
 export function CheckoutForm() {
-  const router = useRouter();
-  const { items, clearCart } = useCartStore();
+  const { items } = useCartStore();
   const subtotal = useCartSubtotal();
   const total = subtotal + DELIVERY_FEE;
 
   const [name, setName] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
-  const [confirmWhatsapp, setConfirmWhatsapp] = useState("");
-  const [deliveryMethod, setDeliveryMethod] = useState<"door" | "locker">("door");
+  const [smsNumber, setSmsNumber] = useState("");
+  const [sameAsWhatsApp, setSameAsWhatsApp] = useState(true);
   const [address, setAddress] = useState("");
+  const [addressComponents, setAddressComponents] =
+    useState<AddressDetails | null>(null);
+  const [unitNumber, setUnitNumber] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const effectiveSms = sameAsWhatsApp ? whatsapp : smsNumber;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
     if (!name.trim()) return setError("Please enter your full name.");
-    if (whatsapp.length !== 9 || !/^\d{9}$/.test(whatsapp))
+    if (whatsapp.length !== 9)
       return setError("WhatsApp number must be 9 digits (e.g. 831234567).");
-    if (whatsapp !== confirmWhatsapp)
-      return setError("WhatsApp numbers do not match.");
-    if (deliveryMethod === "door" && !address.trim())
-      return setError("Please enter your delivery address.");
+    if (!sameAsWhatsApp && effectiveSms.length !== 9)
+      return setError("SMS number must be 9 digits.");
+    if (!addressComponents || !addressComponents.formatted.trim())
+      return setError("Please complete your delivery address.");
     if (items.length === 0) return setError("Your bag is empty.");
+
+    // Final address includes unit number if provided
+    const finalAddress = unitNumber.trim()
+      ? `${addressComponents.formatted}, Unit ${unitNumber.trim()}`
+      : addressComponents.formatted;
 
     setLoading(true);
     try {
@@ -44,24 +64,33 @@ export function CheckoutForm() {
         body: JSON.stringify({
           name,
           whatsapp,
-          deliveryMethod,
-          address: deliveryMethod === "door" ? address : null,
+          smsNumber: effectiveSms,
+          address: finalAddress,
+          addressComponents: {
+            streetNumber: addressComponents.street,
+            route: addressComponents.street,
+            suburb: addressComponents.suburb,
+            city: addressComponents.town,
+            province: addressComponents.province,
+            postalCode: addressComponents.postalCode,
+          },
           items,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Checkout failed.");
-      clearCart();
-      router.push(`/thank-you/${data.orderId}`);
+
+      // Cart will be cleared on thank-you page
+      window.location.href = data.redirectUrl;
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
-    } finally {
       setLoading(false);
     }
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
+      {/* Name */}
       <div className="space-y-4">
         <h2 className="font-display text-2xl text-sand">Your details</h2>
         <Input
@@ -70,8 +99,15 @@ export function CheckoutForm() {
           onChange={(e) => setName(e.target.value)}
           required
         />
+      </div>
+
+      {/* WhatsApp */}
+      <div className="space-y-3">
+        <h3 className="text-sm uppercase tracking-widest text-sand/50">
+          WhatsApp Number
+        </h3>
         <div className="flex items-stretch gap-2">
-          <div className="flex items-center px-4 bg-white/5 border border-white/10 rounded-xl text-sand/60 text-sm">
+          <div className="flex items-center px-4 bg-white/5 border border-white/10 rounded-xl text-sand/60 text-sm shrink-0">
             +27
           </div>
           <Input
@@ -85,60 +121,74 @@ export function CheckoutForm() {
             required
           />
         </div>
-        <Input
-          placeholder="Confirm WhatsApp number"
-          value={confirmWhatsapp}
-          onChange={(e) =>
-            setConfirmWhatsapp(e.target.value.replace(/\D/g, "").slice(0, 9))
-          }
-          inputMode="numeric"
-          maxLength={9}
-          required
-        />
+        <p className="text-xs text-sand/40">
+          We&apos;ll send order updates here.
+        </p>
       </div>
 
-      <div className="space-y-4">
-        <h2 className="font-display text-2xl text-sand">Delivery method</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {[
-            { id: "door", label: "Door Delivery", desc: "Courier to your address" },
-            { id: "locker", label: "Locker Collection", desc: "Collect from nearest TCG locker" },
-          ].map((opt) => (
-            <button
-              type="button"
-              key={opt.id}
-              onClick={() => setDeliveryMethod(opt.id as "door" | "locker")}
-              className={cn(
-                "text-left p-5 rounded-2xl border transition",
-                deliveryMethod === opt.id
-                  ? "border-terracotta bg-terracotta/10"
-                  : "border-white/10 bg-white/[0.03] hover:border-white/20"
-              )}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-sand font-medium">{opt.label}</span>
-                <span className="text-terracotta font-display">
-                  {formatPrice(DELIVERY_FEE)}
-                </span>
-              </div>
-              <p className="text-xs text-sand/50 mt-1">{opt.desc}</p>
-            </button>
-          ))}
-        </div>
+      {/* SMS */}
+      <div className="space-y-3">
+        <h3 className="text-sm uppercase tracking-widest text-sand/50">
+          SMS Number (for courier tracking)
+        </h3>
 
-        {deliveryMethod === "door" ? (
-          <Textarea
-            placeholder="Full delivery address (street, suburb, city, postal code)"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            rows={4}
-            required
+        <label className="flex items-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={sameAsWhatsApp}
+            onChange={(e) => setSameAsWhatsApp(e.target.checked)}
+            className="w-4 h-4 accent-terracotta"
           />
-        ) : (
-          <div className="p-4 rounded-2xl bg-terracotta/10 border border-terracotta/30 text-sm text-sand/80">
-            We&apos;ll send you the 3 closest TCG lockers via WhatsApp after
-            checkout so you can choose the one that works best for you.
-          </div>
+          <span className="text-sm text-sand/80">
+            Same as my WhatsApp number
+          </span>
+        </label>
+
+        {!sameAsWhatsApp && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            className="flex items-stretch gap-2"
+          >
+            <div className="flex items-center px-4 bg-white/5 border border-white/10 rounded-xl text-sand/60 text-sm shrink-0">
+              +27
+            </div>
+            <Input
+              placeholder="831234567"
+              value={smsNumber}
+              onChange={(e) =>
+                setSmsNumber(e.target.value.replace(/\D/g, "").slice(0, 9))
+              }
+              inputMode="numeric"
+              maxLength={9}
+            />
+          </motion.div>
+        )}
+
+        <p className="text-xs text-sand/40 flex items-start gap-1.5">
+          <span className="text-amber-400 shrink-0">⚠</span>
+          <span>
+            The Courier Guy sends your tracking number via SMS. Make sure this
+            number can receive SMS.
+          </span>
+        </p>
+      </div>
+
+      {/* Address */}
+      <div className="space-y-4">
+        <h2 className="font-display text-2xl text-sand">Delivery address</h2>
+
+        <AddressInput
+          onChange={setAddress}
+          onValidated={(details) => setAddressComponents(details)}
+        />
+
+        {addressComponents && addressComponents.formatted.trim() && (
+          <Input
+            placeholder="Unit / apartment number (optional)"
+            value={unitNumber}
+            onChange={(e) => setUnitNumber(e.target.value)}
+          />
         )}
       </div>
 
@@ -152,6 +202,7 @@ export function CheckoutForm() {
         </motion.p>
       )}
 
+      {/* Summary */}
       <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-6 space-y-3">
         <div className="flex justify-between text-sm text-sand/60">
           <span>Subtotal</span>
@@ -175,8 +226,21 @@ export function CheckoutForm() {
         disabled={loading || items.length === 0}
         className="w-full"
       >
-        {loading ? "Placing order..." : "Place Order"}
+        {loading ? (
+          <>
+            <Loader2 size={16} className="animate-spin" /> Redirecting to
+            payment...
+          </>
+        ) : (
+          <>
+            <Lock size={16} /> Pay {formatPrice(total)}
+          </>
+        )}
       </Button>
+
+      <p className="text-xs text-center text-sand/40">
+        Secure payment via Yoco
+      </p>
     </form>
   );
 }

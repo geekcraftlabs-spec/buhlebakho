@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { motion, AnimatePresence } from "framer-motion";
-import { ShoppingBag, AlertCircle, Check } from "lucide-react";
+import { motion } from "framer-motion";
+import { ShoppingBag, AlertCircle } from "lucide-react";
 import { ProductVariant, CartItem } from "@/types";
 import {
   COLOR_SWATCHES,
@@ -28,7 +28,11 @@ export function ProductCard({ variant }: { variant: ProductVariant }) {
     const item: CartItem = {
       variantId: variant.id,
       productName: `${getTextureLabel(variant.texture)} ${
-        variant.hairType === "futura-fibre" ? "Futura" : "Human Blend"
+        variant.hairType === "futura-fibre"
+          ? "Futura"
+          : variant.hairType === "custom-human-hair"
+            ? "Custom Raw"
+            : "Human Blend"
       }`,
       texture: variant.texture,
       laceType: variant.laceType,
@@ -67,10 +71,16 @@ export function ProductCard({ variant }: { variant: ProductVariant }) {
           onError={() => setImgError(true)}
         />
 
+        {/* Category badge */}
         <div className="absolute top-4 left-4 flex flex-col gap-2 items-start">
           <span className="text-[10px] uppercase tracking-widest px-3 py-1.5 rounded-full bg-terracotta text-white font-medium">
             {variant.laceType}
           </span>
+          {variant.hairType === "human-blend" && (
+            <span className="text-[10px] uppercase tracking-widest px-3 py-1.5 rounded-full bg-sand text-espresso font-medium">
+              Human Blend
+            </span>
+          )}
           {variant.hairType === "futura-fibre" && (
             <span className="text-[10px] uppercase tracking-widest px-3 py-1.5 rounded-full bg-purple-500/90 text-white font-medium">
               Futura
@@ -83,14 +93,22 @@ export function ProductCard({ variant }: { variant: ProductVariant }) {
           )}
         </div>
 
-        {inStock && variant.stockCount <= 5 && (
+        {/* Stock badge — ALWAYS shows when in stock */}
+        {inStock && (
           <div className="absolute top-4 right-4">
-            <span className="text-[10px] uppercase tracking-widest px-2.5 py-1 rounded-full bg-amber-500/90 text-espresso font-medium flex items-center gap-1">
-              <AlertCircle size={10} /> Only {variant.stockCount} left
-            </span>
+            {variant.stockCount <= 5 ? (
+              <span className="text-[10px] uppercase tracking-widest px-2.5 py-1 rounded-full bg-amber-500/90 text-espresso font-medium flex items-center gap-1">
+                <AlertCircle size={10} /> Only {variant.stockCount} left
+              </span>
+            ) : (
+              <span className="text-[10px] uppercase tracking-widest px-2.5 py-1 rounded-full bg-green-500/90 text-white font-medium">
+                {variant.stockCount} in stock
+              </span>
+            )}
           </div>
         )}
 
+        {/* Sold out overlay */}
         {!inStock && (
           <div className="absolute inset-0 bg-espresso/60 backdrop-blur-[2px] flex items-center justify-center">
             <span className="text-xs uppercase tracking-[0.3em] text-sand/80 border border-sand/40 rounded-full px-4 py-2">
@@ -132,15 +150,12 @@ export function ProductCard({ variant }: { variant: ProductVariant }) {
               {formatPrice(displayPrice)}
             </span>
           </div>
-
           <motion.button
-            whileTap={{ scale: 0.94 }}
-            animate={added ? { scale: [1, 1.06, 1] } : { scale: 1 }}
-            transition={{ duration: 0.35 }}
+            whileTap={{ scale: 0.95 }}
             onClick={handleAdd}
             disabled={!inStock}
             className={cn(
-              "relative flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition overflow-hidden",
+              "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition",
               inStock
                 ? added
                   ? "bg-green-500 text-white"
@@ -148,32 +163,8 @@ export function ProductCard({ variant }: { variant: ProductVariant }) {
                 : "bg-white/5 text-sand/30 cursor-not-allowed"
             )}
           >
-            <AnimatePresence mode="wait" initial={false}>
-              {added ? (
-                <motion.span
-                  key="check"
-                  initial={{ y: 12, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  exit={{ y: -12, opacity: 0 }}
-                  transition={{ duration: 0.15 }}
-                  className="flex items-center gap-2"
-                >
-                  <Check size={16} /> Added
-                </motion.span>
-              ) : (
-                <motion.span
-                  key="add"
-                  initial={{ y: 12, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  exit={{ y: -12, opacity: 0 }}
-                  transition={{ duration: 0.15 }}
-                  className="flex items-center gap-2"
-                >
-                  <ShoppingBag size={16} />
-                  {inStock ? "Add" : "Sold Out"}
-                </motion.span>
-              )}
-            </AnimatePresence>
+            <ShoppingBag size={16} />
+            {added ? "Added" : inStock ? "Add" : "Sold Out"}
           </motion.button>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Home } from "lucide-react";
 import { SiteNav } from "@/components/navigation/SiteNav";
 import { Button } from "@/components/ui/Button";
 import { BeadworkDivider } from "@/components/brand/BeadworkDivider";
@@ -13,11 +13,33 @@ export const metadata = {
     "Meet Kiara Mabuza — tattoo artist, wig lover, and the soul behind Buhle Bakho.",
 };
 
+export const revalidate = 3600;
+
 export default function HerStoryPage() {
   return (
     <>
       <SiteNav />
       <main className="pt-32">
+        {/* Top nav pills — desktop only */}
+        <section className="px-6 pb-6">
+          <div className="max-w-7xl mx-auto">
+            <div className="hidden lg:flex flex-wrap gap-2">
+              <Link
+                href="/"
+                className="inline-flex items-center gap-2 text-xs uppercase tracking-widest px-4 py-2 rounded-full border border-sand/20 text-sand/70 hover:border-sand/40 transition"
+              >
+                <Home size={12} /> Home
+              </Link>
+              <Link
+                href="/shop"
+                className="inline-flex items-center gap-2 text-xs uppercase tracking-widest px-4 py-2 rounded-full border border-sand/20 text-sand/70 hover:border-sand/40 transition"
+              >
+                Shop
+              </Link>
+            </div>
+          </div>
+        </section>
+
         {/* HERO */}
         <section className="px-6 pb-20">
           <div className="max-w-7xl mx-auto space-y-6">
@@ -61,24 +83,26 @@ export default function HerStoryPage() {
         <section className="px-6 py-24">
           <div className="max-w-3xl mx-auto space-y-8">
             <h2 className="font-display text-4xl md:text-5xl text-sand leading-tight">
-              Ink. Lace. And a whole lot of personality.
+              Hair, ink, and everything in between.
             </h2>
             <div className="space-y-6 text-sand/70 leading-relaxed text-lg">
               <p>
-                By day, Kiara is behind the needle — a tattoo artist with a
-                steady hand and an eye for detail. By night, she&apos;s
-                transforming looks with wigs that make people stop scrolling.
+                Kiara&apos;s been in the tattoo chair for years — drawing,
+                shading, and turning ideas into something permanent. It taught
+                her an eye for detail and the patience to get things right the
+                first time.
               </p>
               <p>
-                Buhle Bakho started as a way for her to share that magic. Not
-                just the hair itself, but the feeling — the moment you look in
-                the mirror and remember that your beauty was never up for
-                debate.
+                When she started wearing wigs, she brought the same approach
+                to hair. She wanted pieces that felt natural, sat right, and
+                actually lasted. When she couldn&apos;t find what she was
+                looking for, she started sourcing them herself.
               </p>
               <p>
-                Every piece in the collection is hand-picked by Kiara, styled
-                the way she&apos;d wear it herself, and delivered with the same
-                care she brings to her art.
+                Buhle Bakho is what came out of that. Every wig is hand-picked
+                by Kiara, and every order is packed with the same care she
+                brings to her work. If it&apos;s not something she&apos;d wear,
+                it doesn&apos;t make it to the shop.
               </p>
             </div>
             <div className="pt-4">
@@ -95,6 +119,16 @@ export default function HerStoryPage() {
           </div>
         </section>
 
+        {/* WIG TIKTOKS */}
+        <section className="px-6 py-24 border-t border-sand/10">
+          <div className="max-w-7xl mx-auto">
+            <TikTokGallery
+              eyebrow="The hair"
+              heading="Wigs in the wild"
+            />
+          </div>
+        </section>
+
         {/* TATTOO ARTISTRY */}
         <section className="px-6 py-24 border-t border-sand/10">
           <div className="max-w-7xl mx-auto">
@@ -106,24 +140,45 @@ export default function HerStoryPage() {
           </div>
         </section>
 
-        {/* WIG TIKTOKS */}
-        <section className="px-6 py-24 border-t border-sand/10">
-          <div className="max-w-7xl mx-auto">
-            <TikTokGallery
-              eyebrow="The hair"
-              heading="Wigs in the wild"
-            />
-          </div>
-        </section>
-
         {/* FOOTER */}
         <footer className="px-6 py-16 border-t border-sand/10">
-          <div className="max-w-7xl mx-auto text-center space-y-3">
-            <p className="font-display text-2xl text-sand">
-              Buhle <span className="text-terracotta">Bakho</span>
-            </p>
-            <p className="text-xs uppercase tracking-widest text-sand/40">
-              Your beauty · Your crown · Your rules
+          <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="space-y-2 text-center md:text-left">
+              <p className="font-display text-2xl text-sand">
+                Buhle <span className="text-terracotta">Bakho</span>
+              </p>
+              <p className="text-xs uppercase tracking-widest text-sand/40">
+                Your beauty · Your crown · Your rules
+              </p>
+            </div>
+            <div className="flex items-center gap-6 text-sm text-sand/60">
+              <a
+                href="https://www.instagram.com/kiara.lukhele_"
+                target="_blank"
+                rel="noreferrer"
+                className="hover:text-terracotta transition"
+              >
+                Instagram
+              </a>
+              <a
+                href="https://www.tiktok.com/@kiaramabuza"
+                target="_blank"
+                rel="noreferrer"
+                className="hover:text-terracotta transition"
+              >
+                TikTok
+              </a>
+              <a
+                href="https://wa.me/27682852438"
+                target="_blank"
+                rel="noreferrer"
+                className="hover:text-terracotta transition"
+              >
+                WhatsApp
+              </a>
+            </div>
+            <p className="text-xs text-sand/40">
+              © {new Date().getFullYear()} Buhle Bakho
             </p>
           </div>
         </footer>

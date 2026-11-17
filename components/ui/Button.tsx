@@ -4,7 +4,7 @@ import { motion, HTMLMotionProps } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 interface ButtonProps extends HTMLMotionProps<"button"> {
-  variant?: "primary" | "secondary" | "ghost";
+  variant?: "primary" | "secondary" | "ghost" | "danger";
   size?: "sm" | "md" | "lg";
 }
 
@@ -25,8 +25,11 @@ export function Button({
         variant === "primary" &&
           "bg-terracotta text-white hover:bg-terracotta/90",
         variant === "secondary" &&
-          "border border-sand/20 text-sand hover:border-terracotta/60 hover:text-terracotta",
-        variant === "ghost" && "text-sand/70 hover:text-sand hover:bg-white/5",
+          "border border-white/20 text-sand hover:bg-white/5",
+        variant === "ghost" &&
+          "text-sand/70 hover:text-sand hover:bg-white/5",
+        variant === "danger" &&
+          "bg-red-500/15 border border-red-500/40 text-red-400 hover:bg-red-500/25",
         size === "sm" && "px-3 py-1.5 text-sm",
         size === "md" && "px-5 py-2.5 text-sm",
         size === "lg" && "px-7 py-3.5 text-base",

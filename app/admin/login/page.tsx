@@ -1,14 +1,13 @@
+/* eslint-disable @next/next/no-location-assign-relative-destination */
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Flower2 } from "lucide-react";
+import { Flower2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 
 export default function AdminLoginPage() {
-  const router = useRouter();
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -17,17 +16,24 @@ export default function AdminLoginPage() {
     e.preventDefault();
     setError(null);
     setLoading(true);
+
     try {
       const res = await fetch("/api/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password }),
       });
-      if (!res.ok) throw new Error("Invalid password.");
-      router.push("/admin/dashboard");
+
+      if (!res.ok) {
+        setError("Invalid password");
+        setLoading(false);
+        return;
+      }
+
+      // Force full-page navigation so the cookie is included on the next request
+      window.location.href = "/admin/dashboard";
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed.");
-    } finally {
+      setError(err instanceof Error ? err.message : "Login failed");
       setLoading(false);
     }
   };
@@ -62,7 +68,13 @@ export default function AdminLoginPage() {
             </p>
           )}
           <Button type="submit" disabled={loading} className="w-full">
-            {loading ? "Checking..." : "Enter"}
+            {loading ? (
+              <>
+                <Loader2 size={16} className="animate-spin" /> Checking...
+              </>
+            ) : (
+              "Enter"
+            )}
           </Button>
         </form>
       </motion.div>

@@ -9,6 +9,8 @@ import { BeadworkDivider } from "@/components/brand/BeadworkDivider";
 import { Marquee } from "@/components/brand/Marquee";
 import { CATEGORIES } from "@/lib/catalog";
 
+export const revalidate = 3600;
+
 export default function Home() {
   return (
     <>
@@ -30,7 +32,7 @@ export default function Home() {
               </h1>
               <p className="text-lg text-sand/60 max-w-md leading-relaxed">
                 Human blends, Futura fibres, and made-to-order 100% human
-                hair. Same-day processing. 2-3 day nationwide delivery.
+                hair. Next-day processing. 2-3 day nationwide delivery.
               </p>
               <div className="flex flex-wrap gap-4 pt-2">
                 <Link href="/shop">
@@ -70,7 +72,7 @@ export default function Home() {
         {/* MARQUEE */}
         <Marquee />
 
-        {/* FEATURED — now uses category cards */}
+        {/* CATEGORY SELECTION */}
         <section className="px-6 py-24">
           <div className="max-w-7xl mx-auto space-y-12">
             <header className="flex items-end justify-between gap-6">
@@ -158,10 +160,10 @@ export default function Home() {
                 It was always yours.
               </h2>
               <p className="text-sand/60 leading-relaxed max-w-lg text-lg">
-                Buhle Bakho started with a simple idea — that every woman
-                deserves to feel like the best version of herself. Whether you
-                want a premium human blend, a bold Futura fibre, or a custom
-                wig made just for you, we&apos;ve got you.
+                Buhle Bakho started with a simple idea — every woman deserves
+                to feel like the best version of herself. Whether you want a
+                premium human blend, a bold Futura fibre, or a custom wig
+                made just for you, we&apos;ve got you.
               </p>
               <Link
                 href="/her-story"
@@ -212,7 +214,7 @@ export default function Home() {
         <section className="border-t border-sand/10 px-6 py-16">
           <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8">
             {[
-              { label: "Same-day", value: "Processing" },
+              { label: "Next-day", value: "Processing" },
               { label: "2-3 Days", value: "Delivery" },
               { label: "3 Types", value: "Of Hair" },
               { label: "Nationwide", value: "Shipping" },

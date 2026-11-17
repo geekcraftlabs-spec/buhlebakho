@@ -19,7 +19,7 @@ export default function CheckoutPage() {
               Checkout
             </h1>
             <p className="text-sand/60">
-              Same-day processing · 2-3 day delivery nationwide
+              Next-day processing · 2-3 day delivery nationwide
             </p>
           </header>
 

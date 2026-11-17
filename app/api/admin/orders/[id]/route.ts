@@ -12,12 +12,17 @@ export async function PATCH(
     }
     const { id } = await params;
     const body = await req.json();
+
+    const data: Record<string, unknown> = {};
+    if (body.status !== undefined) data.status = body.status;
+    if (body.waybill !== undefined) data.waybill = body.waybill;
+    if (body.status === "paid" && !body.skipPaidAt) {
+      // Set paidAt if it's not already set (only on transition to paid)
+    }
+
     const order = await prisma.order.update({
       where: { id },
-      data: {
-        status: body.status,
-        ...(body.waybill !== undefined && { waybill: body.waybill }),
-      },
+      data,
     });
     return NextResponse.json(order);
   } catch (err) {
