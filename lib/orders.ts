@@ -8,11 +8,12 @@ export async function createOrder(data: {
   whatsapp: string;
   deliveryMethod: "door" | "locker";
   address: string | null;
+  smsNumber: string | null;
   items: CartItem[];
   subtotal: number;
   deliveryFee: number;
   total: number;
-  payshapReference: string;
+  yocoCheckoutId: string | null;
 }) {
   return prisma.order.create({
     data: {
@@ -21,11 +22,13 @@ export async function createOrder(data: {
       whatsapp: data.whatsapp,
       deliveryMethod: data.deliveryMethod,
       address: data.address,
+      smsNumber: data.smsNumber,
       items: data.items as unknown as Prisma.InputJsonValue,
       subtotal: data.subtotal,
       deliveryFee: data.deliveryFee,
       total: data.total,
-      payshapReference: data.payshapReference,
+      status: "pending",
+      yocoCheckoutId: data.yocoCheckoutId,
     },
   });
 }
